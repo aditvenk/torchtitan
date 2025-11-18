@@ -1,0 +1,81 @@
+[job]
+dump_folder = "./outputs"
+description = "Mamba2 1.4B training"
+print_config = false
+
+[profiling]
+enable_profiling = false
+save_traces_folder = "profile_trace"
+profile_freq = 10
+enable_memory_snapshot = false
+save_memory_snapshot_folder = "memory_snapshot"
+
+[metrics]
+log_freq = 10
+disable_color_printing = false
+enable_tensorboard = false
+save_tb_folder = "tb"
+enable_wandb = false
+
+[model]
+name = "mamba2"
+flavor = "1.4B"  # Matches state-spaces/mamba configuration
+# Download a tokenizer from HuggingFace, e.g., meta-llama/Llama-3.2-1B
+# For production, use a proper tokenizer instead of test tokenizer
+hf_assets_path = "./tests/assets/tokenizer"
+
+[optimizer]
+name = "AdamW"
+lr = 2e-4  # Lower LR for larger model
+eps = 1e-8
+weight_decay = 0.1
+
+[lr_scheduler]
+warmup_steps = 100  # More warmup for stability
+decay_ratio = 0.8
+decay_type = "cosine"
+min_lr_factor = 0.1
+
+[training]
+local_batch_size = 1
+seq_len = 256
+max_norm = 1.0  # grad norm clipping
+steps = 1000
+dataset = "c4_test"  # Use c4_test for quick testing, or "c4" for full dataset
+
+[parallelism]
+data_parallel_replicate_degree = 1  # Disabled (pure FSDP, no HSDP)
+data_parallel_shard_degree = -1     # -1 = use all available GPUs for FSDP sharding
+fsdp_reshard_after_forward = "default"
+tensor_parallel_degree = 1
+enable_async_tensor_parallel = false
+pipeline_parallel_degree = 1
+pipeline_parallel_schedule = "Interleaved1F1B"
+context_parallel_degree = 1
+
+[checkpoint]
+enable = false
+folder = "checkpoint"
+interval = 500
+last_save_model_only = false
+export_dtype = "float32"
+async_mode = "disabled"
+
+[activation_checkpoint]
+mode = "selective"  # Essential for large model
+selective_ac_option = '8'  # AC every 8 layers (48 layers / 8 = 6 checkpoints)
+
+[compile]
+enable = false  # Disable initially, enable after validating correctness
+components = ["model", "loss"]
+
+[quantize.linear.float8]
+enable_fsdp_float8_all_gather = false
+precompute_float8_dynamic_scale_for_fsdp = false
+filter_fqns = ["output"]
+
+[validation]
+enable = false
+dataset = "c4_validation"
+freq = 500
+steps = 10
